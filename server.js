@@ -15,7 +15,7 @@ const ALPHA_VANTAGE_API_KEY =
 
 if (
   !ALPHA_VANTAGE_API_KEY ||
-  ALPHA_VANTAGE_API_KEY === "YOUR_ALPHA_VANTAGE_KEY_HERE"
+  ALPHA_VANTAGE_API_KEY === "ZG4H6IIL92LJBUFX"
 ) {
   console.warn(
     "⚠ 警告：还没有配置 ALPHA_VANTAGE_API_KEY，美股行情接口会报错，请在环境变量或 server.js 顶部填写你的 KEY。"
