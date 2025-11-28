@@ -23,58 +23,12 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 /**
- * 调用 Alpha Vantage 获取美股报价
- * @param {string} symbol 例如 SYM / AAPL
- */
-async function fetchAlphaQuote_US(symbol) {
-  const raw = (symbol || "").trim().toUpperCase();
-  if (!raw) throw new Error("symbol 不能为空");
-
-  const alphaSymbol = raw;
-
-  const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(
-    alphaSymbol
-  )}&apikey=${ALPHA_VANTAGE_API_KEY}&datatype=json`;
-
-  console.log("调用 Alpha Vantage (US):", url);
-
-  const resp = await axios.get(url, { timeout: 10000 });
-  const data = resp.data || {};
-
-  // 免费版频率太快会返回 Note
-  if (data.Note) {
-    throw new Error(
-      "Alpha Vantage 提示调用太频繁（免费账户有频率限制），请稍后再试。"
-    );
-  }
-
-  const quote = data["Global Quote"] || data["Global_Quote"];
-  if (!quote || !quote["05. price"]) {
-    throw new Error(
-      "未在 Alpha Vantage 找到该美股，请确认代码是否正确，例如 SYM / AAPL。"
-    );
-  }
-
-  const price = parseFloat(quote["05. price"]);
-  if (!isFinite(price)) {
-    throw new Error("返回价格不是有效数字：" + quote["05. price"]);
-  }
-
-  return {
-    symbol: alphaSymbol,
-    shortName: alphaSymbol,
-    price,
-    currency: "USD",
-    source: "Alpha Vantage",
-  };
-}
-
-/**
- * 行情接口：
- *   - 仅支持美股（market=US）
- *   - 意大利股票使用手动价格，这里不处理
+ * GET /api/quote
+ * 用于前端获取美股实时行情
+ * 仅支持 market=US，美股；意大利股票请在前端手动录入现价
  *
- * GET /api/quote?symbol=SYM&market=US
+ * 请求示例：
+ *   /api/quote?symbol=SYM&market=US
  */
 app.get("/api/quote", async (req, res) => {
   const symbol = (req.query.symbol || "").trim();
@@ -93,10 +47,54 @@ app.get("/api/quote", async (req, res) => {
     });
   }
 
+  const rawSymbol = symbol.toUpperCase();
+
   try {
-    const quote = await fetchAlphaQuote_US(symbol);
-    console.log("获取美股行情成功:", quote);
-    res.json(quote);
+    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(
+      rawSymbol
+    )}&apikey=${ALPHA_VANTAGE_API_KEY}&datatype=json`;
+
+    console.log("调用 Alpha Vantage (US):", url);
+
+    const resp = await axios.get(url, { timeout: 10000 });
+    const data = resp.data || {};
+
+    // ★ 把 Alpha 返回的原始 JSON 打印出来，方便在 Render 上看问题
+    console.log(
+      "Alpha Vantage 返回原始数据:",
+      JSON.stringify(data).slice(0, 500) // 防止太长
+    );
+
+    // 频率限制 / 日调用限制时，Alpha 会返回 Note 或 Information
+    if (data.Note || data.Information) {
+      throw new Error(
+        (data.Note || data.Information) +
+          "（可能是请求频率或每日次数限制导致）"
+      );
+    }
+
+    const quote = data["Global Quote"] || data["Global_Quote"];
+    if (!quote || !quote["05. price"]) {
+      throw new Error(
+        "未在 Alpha Vantage 找到该美股，请确认代码是否正确，例如 SYM / AAPL。"
+      );
+    }
+
+    const price = parseFloat(quote["05. price"]);
+    if (!isFinite(price)) {
+      throw new Error("返回价格不是有效数字：" + quote["05. price"]);
+    }
+
+    const result = {
+      symbol: rawSymbol,
+      shortName: rawSymbol,
+      price,
+      currency: "USD",
+      source: "Alpha Vantage",
+    };
+
+    console.log("获取美股行情成功:", result);
+    res.json(result);
   } catch (err) {
     console.error("获取美股行情出错:", err.message);
     res.status(500).json({
