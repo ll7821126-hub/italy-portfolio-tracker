@@ -9,17 +9,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ===== Alpha Vantage 配置（只用于美股） =====
-// 去 https://www.alphavantage.co 注册一个免费 KEY，填到这里
-const ALPHA_VANTAGE_API_KEY =
-  process.env.ALPHA_VANTAGE_API_KEY || "ZG4H6IIL92LJBUFX";
+// 已写死你的 API KEY，不再依赖环境变量
+const ALPHA_VANTAGE_API_KEY = "ZG4H6IIL92LJBUFX";
 
-if (
-  !ALPHA_VANTAGE_API_KEY ||
-  ALPHA_VANTAGE_API_KEY === "ZG4H6IIL92LJBUFX"
-) {
-  console.warn(
-    "⚠ 警告：还没有配置 ALPHA_VANTAGE_API_KEY，美股行情接口会报错，请在环境变量或 server.js 顶部填写你的 KEY。"
-  );
+// 简单提示一下，防止以后不小心改掉
+if (!ALPHA_VANTAGE_API_KEY) {
+  console.warn("⚠ 当前没有配置 Alpha Vantage API Key，美股行情将无法获取！");
 }
 // =======================================
 
@@ -32,15 +27,6 @@ app.use(express.static(path.join(__dirname, "public")));
  * @param {string} symbol 例如 SYM / AAPL
  */
 async function fetchAlphaQuote_US(symbol) {
-  if (
-    !ALPHA_VANTAGE_API_KEY ||
-    ALPHA_VANTAGE_API_KEY === "YOUR_ALPHA_VANTAGE_KEY_HERE"
-  ) {
-    throw new Error(
-      "服务器未配置 Alpha Vantage API Key，请先在 server.js 顶部填写或在环境变量 ALPHA_VANTAGE_API_KEY 中设置。"
-    );
-  }
-
   const raw = (symbol || "").trim().toUpperCase();
   if (!raw) throw new Error("symbol 不能为空");
 
@@ -55,6 +41,7 @@ async function fetchAlphaQuote_US(symbol) {
   const resp = await axios.get(url, { timeout: 10000 });
   const data = resp.data || {};
 
+  // 免费版频率太快会返回 Note
   if (data.Note) {
     throw new Error(
       "Alpha Vantage 提示调用太频繁（免费账户有频率限制），请稍后再试。"
@@ -78,7 +65,7 @@ async function fetchAlphaQuote_US(symbol) {
     shortName: alphaSymbol,
     price,
     currency: "USD",
-    source: "Alpha Vantage"
+    source: "Alpha Vantage",
   };
 }
 
@@ -96,13 +83,13 @@ app.get("/api/quote", async (req, res) => {
   if (!symbol) {
     return res.status(400).json({
       error:
-        "symbol 参数必填，请填写股票代码（括号里的英文字母），例如 SYM / AAPL。"
+        "symbol 参数必填，请填写股票代码（括号里的英文字母），例如 SYM / AAPL。",
     });
   }
 
   if (market !== "US") {
     return res.status(400).json({
-      error: "当前行情接口仅支持美股；意大利股票请在前端录入或修改现价。"
+      error: "当前行情接口仅支持美股；意大利股票请在前端录入或修改现价。",
     });
   }
 
@@ -115,12 +102,12 @@ app.get("/api/quote", async (req, res) => {
     res.status(500).json({
       error:
         "未能获取该美股行情，请确认代码是否正确，或稍后再试。详细信息：" +
-        err.message
+        err.message,
     });
   }
 });
 
-// ------- 静态页面兜底（Render 等环境也适用） -------
+// ------- 静态页面兜底（Render、本地都通用） -------
 app.get("*", (req, res) => {
   const htmlPath = path.join(__dirname, "public", "index.html");
   const htmPath = path.join(__dirname, "public", "index.htm");
