@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>意大利 & 美股 客户持股追踪（EUR / USD）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Microsoft YaHei",
+        sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f3f6fb;
+      color: #222;
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .page-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #4150b8;
+    }
+
+    .pill-secondary {
+      background: #e5f6ff;
+      color: #0369a1;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
+      padding: 16px 20px 20px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .card-title small {
+      font-size: 12px;
+      color: #888;
+      font-weight: 400;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px 16px;
+    }
+
+    label {
+      font-size: 12px;
+      color: #555;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid #d5d8e0;
+      font-size: 13px;
+      background: #f9fafc;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease,
+        background-color 0.15s ease;
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
+      background: #ffffff;
+    }
+
+    .btn-row {
+      margin-top: 14px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #2563eb, #4f46e5);
+      color: #fff;
+      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-secondary {
+      background: #eef2ff;
+      color: #4150b8;
+    }
+
+    .btn-danger {
+      background: #ffe7e7;
+      color: #d03131;
+    }
+
+    .btn-text {
+      background: transparent;
+      color: #666;
+      padding-left: 0;
+      padding-right: 0;
+      box-shadow: none;
+    }
+
+    .btn-text:hover {
+      text-decoration: underline;
+    }
+
+    .btn-outline {
+      background: #ffffff;
+      border-radius: 999px;
+      border: 1px solid #d0d4f0;
+      font-size: 11px;
+      padding: 4px 10px;
+      color: #4150b8;
+      cursor: pointer;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      background: #eef2ff;
+      color: #4150b8;
+      margin-left: 6px;
+    }
+
+    .badge-profit {
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      display: inline-block;
+    }
+
+    .badge-profit.positive {
+      background: #e4f9ee;
+      color: #079e4c;
+    }
+
+    .badge-profit.negative {
+      background: #ffe7e7;
+      color: #d03131;
+    }
+
+    .text-muted {
+      color: #999;
+      font-size: 11px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 12px;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    thead {
+      background: #f3f4ff;
+    }
+
+    th,
+    td {
+      padding: 8px 6px;
+      border-bottom: 1px solid #eef0f5;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left;
+    }
+
+    th:nth-child(2),
+    td:nth-child(2) {
+      text-align: left;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .layout {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      flex-wrap: nowrap;
+    }
+
+    .layout-left {
+      flex: 0 0 340px;
+      max-width: 380px;
+    }
+
+    .layout-right {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .client-summary-section {
+      margin-top: 4px;
+    }
+
+    .client-summary-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .section-subtitle {
+      font-size: 11px;
+      color: #888;
+    }
+
+    .client-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .client-card {
+      background: #f9fafc;
+      border-radius: 14px;
+      padding: 10px 12px 12px;
+      border: 1px solid #e1e4f5;
+    }
+
+    .client-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .client-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .client-return {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .client-return.positive {
+      color: #0caa4b;
+    }
+
+    .client-return.negative {
+      color: #d03131;
+    }
+
+    .client-card-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 2px;
+      font-size: 12px;
+    }
+
+    .client-card-row span:first-child {
+      color: #777;
+    }
+
+    .positive-text {
+      color: #079e4c;
+    }
+
+    .negative-text {
+      color: #d03131;
+    }
+
+    .client-card-footer {
+      margin-top: 8px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        flex-direction: column;
+      }
+
+      .layout-left {
+        flex: 1 1 auto;
+        max-width: 100%;
+      }
+
+      .layout-right {
+        flex: 1 1 auto;
+        width: 100%;
+      }
+
+      th:nth-child(3),
+      td:nth-child(3),
+      th:nth-child(4),
+      td:nth-child(4) {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">意大利 & 美股 客户持股追踪</div>
+        <div class="page-subtitle">
+          按客户记录持股；美股实时价来自 Alpha Vantage。意大利股票当前采用
+          <strong>手动价格</strong>（默认使用买入价，可在“现价”输入框中自行修改），数据仅保存在本机浏览器中。
+        </div>
+      </div>
+      <div class="page-tags">
+        <span class="pill">市场：意大利股票 + 美股</span>
+        <span class="pill pill-secondary">币种：欧元 € / 美元 $</span>
+      </div>
+    </div>
+
+    <div class="layout">
+      <!-- 左侧录入 -->
+      <div class="layout-left">
+        <div class="card">
+          <div class="card-title">
+            新增 / 修改持仓
+            <small>股票代码使用括号里的英文字母，例如 PRY / DIA.MI / SYM / AAPL</small>
+          </div>
+
+          <form id="positionForm">
+            <div class="form-grid">
+              <div>
+                <label>客户姓名 / 分组名</label>
+                <input type="text" id="clientName" placeholder="例如：韩春明 / 意大利VIP组" required />
+              </div>
+
+              <div>
+                <label>市场</label>
+                <select id="market">
+                  <option value="IT">意大利股票（EUR，代码如 PRY / ENEL / DIA.MI）</option>
+                  <option value="US">美股（USD，代码如 AAPL / SYM）</option>
+                </select>
+              </div>
+
+              <div>
+                <label>股票名称（可选）</label>
+                <input type="text" id="stockName" placeholder="例如：Prysmian SpA / Symbotic Inc." />
+              </div>
+
+              <div>
+                <label>股票代码（括号里的英文字母）</label>
+                <input
+                  type="text"
+                  id="symbol"
+                  placeholder="例如：PRY / DIA.MI / SYM / AAPL"
+                  required
+                />
+              </div>
+
+              <div>
+                <label>持股数量（股）</label>
+                <input type="number" id="shares" min="1" step="1" placeholder="例如：250" required />
+              </div>
+
+              <div>
+                <label>买入价格（按对应币种）</label>
+                <input type="number" id="costPrice" min="0" step="0.01" placeholder="例如：85.44 / 90" required />
+              </div>
+
+              <div>
+                <label>现价（仅意大利，可选）</label>
+                <input
+                  type="number"
+                  id="currentPrice"
+                  min="0"
+                  step="0.01"
+                  placeholder="意大利：不填则默认=买入价；美股自动行情忽略此项"
+                />
+              </div>
+
+              <div>
+                <label>止损价（可选）</label>
+                <input type="number" id="stopLoss" min="0" step="0.01" placeholder="选填" />
+              </div>
+
+              <div>
+                <label>止盈价（可选）</label>
+                <input type="number" id="takeProfit" min="0" step="0.01" placeholder="选填" />
+              </div>
+
+              <div>
+                <label>备注（可选）</label>
+                <input type="text" id="note" placeholder="例如：短线 / 中长线 / 理事推荐" />
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button type="submit" class="btn-primary" id="saveBtn">保存持仓</button>
+              <button type="button" class="btn-secondary" id="resetFormBtn">清空表单</button>
+              <button type="button" class="btn-danger" id="clearAllBtn">清空所有持仓（本机）</button>
+            </div>
+            <div class="text-muted" style="margin-top:6px;">
+              示例：Prysmian SpA 页面显示 <strong>Prysmian SpA (PRY.MI)</strong>，则代码可填写
+              <strong>PRY</strong> 或 <strong>PRY.MI</strong><br />
+              DiaSorin S.p.A. 显示 <strong>DiaSorin S.p.A. (DIA.MI)</strong>，则代码可填写
+              <strong>DIA</strong> 或 <strong>DIA.MI</strong><br />
+              Symbotic Inc. 显示 <strong>Symbotic Inc. (SYM)</strong>，则代码填写
+              <strong>SYM</strong>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- 右侧：客户卡片 + 列表 -->
+      <div class="layout-right">
+        <div class="card">
+          <div class="card-title">
+            持仓列表 · 报价
+            <div>
+              <button type="button" class="btn-secondary" id="manualRefreshBtn">
+                手动刷新美股行情
+              </button>
+            </div>
+          </div>
+
+          <div class="client-summary-section">
+            <div class="client-summary-header">
+              <span class="section-title">按客户汇总（分币种）</span>
+              <span class="section-subtitle">同一客户意股 / 美股分别展示，避免币种混在一起</span>
+            </div>
+            <div id="clientSummaryCards" class="client-cards-grid"></div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>客户 / 分组</th>
+                <th>股票 / 代码</th>
+                <th>数量</th>
+                <th>成本价</th>
+                <th>现价</th>
+                <th>投入金额</th>
+                <th>当前市值</th>
+                <th>盈亏</th>
+                <th>收益率</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="positionsTbody"></tbody>
+          </table>
+
+          <div class="text-muted" style="margin-top:8px;">
+            美股行情数据来自 Alpha Vantage，仅作参考，实际成交价格以券商系统为准。意大利股票采用手动价格，默认以买入价为现价，可通过“编辑”修改“现价”后重新保存。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 前端脚本：意大利手动（可编辑现价），美股通过 /api/quote 自动抓取 -->
+  <script>
+    const STORAGE_KEY = "italy_us_portfolio_manual_IT";
+
+    function formatMoney(num, currency) {
+      if (!isFinite(num)) {
+        return (currency === "USD" ? "$ " : "€ ") + "0.00";
+      }
+      const symbol = currency === "USD" ? "$" : "€";
+      return (
+        symbol +
+        " " +
+        num.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        })
+      );
+    }
+
+    function formatPercent(num) {
+      if (!isFinite(num)) return "0.00%";
+      return num.toFixed(2) + "%";
+    }
+
+    function loadPortfolio() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const data = JSON.parse(raw);
+        return Array.isArray(data) ? data : [];
+      } catch (e) {
+        console.error("加载本地持仓失败:", e);
+        return [];
+      }
+    }
+
+    function savePortfolio(list) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+
+    function uuid() {
+      return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+    }
+
+    // 只给美股用的行情接口；意大利不调用
+    async function fetchQuoteUS(symbol) {
+      const resp = await fetch(
+        "/api/quote?symbol=" +
+          encodeURIComponent(symbol) +
+          "&market=US"
+      );
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data.error || "美股行情接口错误");
+      }
+      return data;
+    }
+
+    function escapeHtml(str) {
+      return (str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    const positionForm = document.getElementById("positionForm");
+    const saveBtn = document.getElementById("saveBtn");
+    const resetFormBtn = document.getElementById("resetFormBtn");
+    const clearAllBtn = document.getElementById("clearAllBtn");
+    const manualRefreshBtn = document.getElementById("manualRefreshBtn");
+
+    const clientNameInput = document.getElementById("clientName");
+    const marketSelect = document.getElementById("market");
+    const stockNameInput = document.getElementById("stockName");
+    const symbolInput = document.getElementById("symbol");
+    const sharesInput = document.getElementById("shares");
+    const costPriceInput = document.getElementById("costPrice");
+    const currentPriceInput = document.getElementById("currentPrice");
+    const stopLossInput = document.getElementById("stopLoss");
+    const takeProfitInput = document.getElementById("takeProfit");
+    const noteInput = document.getElementById("note");
+
+    const positionsTbody = document.getElementById("positionsTbody");
+    const clientSummaryCards = document.getElementById("clientSummaryCards");
+
+    let editingId = null;
+
+    function renderClientSummaryCards(stats) {
+      clientSummaryCards.innerHTML = "";
+      const keys = Object.keys(stats);
+      if (!keys.length) {
+        clientSummaryCards.innerHTML =
+          '<div class="text-muted">暂时还没有客户持仓记录</div>';
+        return;
+      }
+
+      keys.forEach((key) => {
+        const s = stats[key];
+        const invested = s.invested;
+        const marketValue = s.marketValue;
+        const profit = marketValue - invested;
+        const rate = invested > 0 ? (profit / invested) * 100 : 0;
+
+        const name = s.clientName;
+        const currency = s.currency;
+        const displayName =
+          name + " · " + (currency === "USD" ? "USD" : "EUR");
+
+        const card = document.createElement("div");
+        card.className = "client-card";
+        card.innerHTML = `
+          <div class="client-card-header">
+            <div class="client-name">${escapeHtml(displayName)}</div>
+            <div class="client-return ${
+              rate >= 0 ? "positive" : "negative"
+            }">${formatPercent(rate)}</div>
+          </div>
+          <div class="client-card-row">
+            <span>总投入成本</span>
+            <span>${formatMoney(invested, currency)}</span>
+          </div>
+          <div class="client-card-row">
+            <span>当前市值</span>
+            <span>${formatMoney(marketValue, currency)}</span>
+          </div>
+          <div class="client-card-row">
+            <span>总盈亏</span>
+            <span class="${
+              profit >= 0 ? "positive-text" : "negative-text"
+            }">${formatMoney(profit, currency)}</span>
+          </div>
+          <div class="client-card-footer">
+            <button type="button" class="btn-outline">AI解析建议</button>
+          </div>
+        `;
+        clientSummaryCards.appendChild(card);
+      });
+    }
+
+    function render() {
+      const portfolio = loadPortfolio();
+      positionsTbody.innerHTML = "";
+
+      const clientStats = {};
+
+      portfolio.forEach((pos) => {
+        const currency = pos.currency || (pos.market === "US" ? "USD" : "EUR");
+        const invested = pos.shares * pos.costPrice;
+        const marketValue = pos.shares * (pos.lastPrice || pos.costPrice);
+        const profit = marketValue - invested;
+        const rate = invested > 0 ? (profit / invested) * 100 : 0;
+
+        const clientKey = pos.clientName || "未命名客户";
+        const statKey = clientKey + "__" + currency;
+        if (!clientStats[statKey]) {
+          clientStats[statKey] = {
+            clientName: clientKey,
+            currency,
+            invested: 0,
+            marketValue: 0
+          };
+        }
+        clientStats[statKey].invested += invested;
+        clientStats[statKey].marketValue += marketValue;
+
+        const tr = document.createElement("tr");
+
+        const nameTd = document.createElement("td");
+        nameTd.textContent = pos.clientName || "-";
+        tr.appendChild(nameTd);
+
+        const stockTd = document.createElement("td");
+        const namePart = pos.stockName ? pos.stockName + " " : "";
+        stockTd.innerHTML =
+          namePart +
+          `<span class="text-muted">${escapeHtml(pos.symbol)}</span>`;
+        tr.appendChild(stockTd);
+
+        const sharesTd = document.createElement("td");
+        sharesTd.textContent = pos.shares.toLocaleString("en-US");
+        tr.appendChild(sharesTd);
+
+        const costTd = document.createElement("td");
+        costTd.textContent = formatMoney(pos.costPrice, currency);
+        tr.appendChild(costTd);
+
+        const priceTd = document.createElement("td");
+        const priceLabel = pos.lastPrice
+          ? formatMoney(pos.lastPrice, currency)
+          : "—";
+        priceTd.innerHTML =
+          priceLabel + ` <span class="tag">${currency}</span>`;
+        tr.appendChild(priceTd);
+
+        const investedTd = document.createElement("td");
+        investedTd.textContent = formatMoney(invested, currency);
+        tr.appendChild(investedTd);
+
+        const mvTd = document.createElement("td");
+        mvTd.textContent = formatMoney(marketValue, currency);
+        tr.appendChild(mvTd);
+
+        const profitTd = document.createElement("td");
+        const profitSpan = document.createElement("span");
+        profitSpan.className =
+          "badge-profit " + (profit >= 0 ? "positive" : "negative");
+        profitSpan.textContent = formatMoney(profit, currency);
+        profitTd.appendChild(profitSpan);
+        tr.appendChild(profitTd);
+
+        const rateTd = document.createElement("td");
+        const rateSpan = document.createElement("span");
+        rateSpan.className =
+          "badge-profit " + (rate >= 0 ? "positive" : "negative");
+        rateSpan.textContent = formatPercent(rate);
+        rateTd.appendChild(rateSpan);
+        tr.appendChild(rateTd);
+
+        const actionTd = document.createElement("td");
+        actionTd.style.textAlign = "right";
+
+        const editBtn = document.createElement("button");
+        editBtn.type = "button";
+        editBtn.className = "btn-text";
+        editBtn.textContent = "编辑";
+        editBtn.addEventListener("click", () => startEdit(pos.id));
+        actionTd.appendChild(editBtn);
+
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "btn-text";
+        delBtn.style.color = "#d03131";
+        delBtn.textContent = "删除";
+        delBtn.addEventListener("click", () => deletePosition(pos.id));
+        actionTd.appendChild(delBtn);
+
+        tr.appendChild(actionTd);
+        positionsTbody.appendChild(tr);
+      });
+
+      renderClientSummaryCards(clientStats);
+    }
+
+    function resetForm() {
+      positionForm.reset();
+      marketSelect.value = "IT";
+      editingId = null;
+      saveBtn.textContent = "保存持仓";
+    }
+
+    function startEdit(id) {
+      const portfolio = loadPortfolio();
+      const pos = portfolio.find((p) => p.id === id);
+      if (!pos) return;
+
+      editingId = id;
+      clientNameInput.value = pos.clientName || "";
+      marketSelect.value = pos.market || "IT";
+      stockNameInput.value = pos.stockName || "";
+      symbolInput.value = pos.symbol || "";
+      sharesInput.value = pos.shares || "";
+      costPriceInput.value = pos.costPrice || "";
+      stopLossInput.value = pos.stopLoss ?? "";
+      takeProfitInput.value = pos.takeProfit ?? "";
+      noteInput.value = pos.note || "";
+
+      // 只有意大利才给现价输入框赋值
+      if ((pos.market || "IT") === "IT" && pos.lastPrice) {
+        currentPriceInput.value = pos.lastPrice;
+      } else {
+        currentPriceInput.value = "";
+      }
+
+      saveBtn.textContent = "保存修改";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function deletePosition(id) {
+      if (!confirm("确认删除该持仓记录吗？")) return;
+      let portfolio = loadPortfolio();
+      portfolio = portfolio.filter((p) => p.id !== id);
+      savePortfolio(portfolio);
+      render();
+    }
+
+    // 提交表单：US 自动抓行情，IT 用手动价格（lastPrice 可编辑）
+    positionForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const clientName = clientNameInput.value.trim();
+      const market = marketSelect.value; // IT / US
+      const stockName = stockNameInput.value.trim();
+      const symbol = symbolInput.value.trim();
+      const shares = parseFloat(sharesInput.value);
+      const costPrice = parseFloat(costPriceInput.value);
+      const currentPriceManual = currentPriceInput.value
+        ? parseFloat(currentPriceInput.value)
+        : null;
+      const stopLoss = stopLossInput.value ? parseFloat(stopLossInput.value) : null;
+      const takeProfitVal = takeProfitInput.value;
+      const takeProfit = takeProfitVal ? parseFloat(takeProfitVal) : null;
+      const note = noteInput.value.trim();
+
+      if (!clientName || !symbol || !shares || !costPrice) {
+        alert("请填写完整必填信息");
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = "保存中…";
+
+      try {
+        let lastPrice;
+        let currency;
+
+        if (market === "US") {
+          const quote = await fetchQuoteUS(symbol);
+          lastPrice = quote.price;
+          currency = quote.currency || "USD";
+        } else {
+          // 意大利：现价优先用手动输入，否则默认等于成本价
+          lastPrice = currentPriceManual != null ? currentPriceManual : costPrice;
+          currency = "EUR";
+        }
+
+        let portfolio = loadPortfolio();
+        if (editingId) {
+          portfolio = portfolio.map((p) =>
+            p.id === editingId
+              ? {
+                  ...p,
+                  clientName,
+                  market,
+                  stockName,
+                  symbol,
+                  shares,
+                  costPrice,
+                  stopLoss,
+                  takeProfit,
+                  note,
+                  lastPrice,
+                  currency,
+                  updatedAt: Date.now()
+                }
+              : p
+          );
+        } else {
+          portfolio.push({
+            id: uuid(),
+            clientName,
+            market,
+            stockName,
+            symbol,
+            shares,
+            costPrice,
+            stopLoss,
+            takeProfit,
+            note,
+            lastPrice,
+            currency,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          });
+        }
+
+        savePortfolio(portfolio);
+        resetForm();
+        render();
+      } catch (err) {
+        console.error(err);
+        alert("保存失败：" + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = editingId ? "保存修改" : "保存持仓";
+      }
+    });
+
+    resetFormBtn.addEventListener("click", () => resetForm());
+
+    clearAllBtn.addEventListener("click", () => {
+      if (!confirm("确认清空本机所有持仓记录吗？")) return;
+      savePortfolio([]);
+      resetForm();
+      render();
+    });
+
+    // 手动刷新：只刷新美股行情，意大利跳过
+    manualRefreshBtn.addEventListener("click", async () => {
+      let portfolio = loadPortfolio();
+      if (!portfolio.length) {
+        alert("当前没有任何持仓记录可刷新");
+        return;
+      }
+
+      manualRefreshBtn.disabled = true;
+      manualRefreshBtn.textContent = "刷新中…";
+
+      try {
+        for (let i = 0; i < portfolio.length; i++) {
+          const pos = portfolio[i];
+          if ((pos.market || "IT") !== "US") {
+            continue; // 意大利不用刷新
+          }
+
+          try {
+            const quote = await fetchQuoteUS(pos.symbol);
+            const currency = quote.currency || "USD";
+            portfolio[i] = {
+              ...pos,
+              lastPrice: quote.price,
+              currency,
+              updatedAt: Date.now()
+            };
+          } catch (err) {
+            console.warn("刷新美股失败：", pos.symbol, err.message);
+          }
+        }
+        savePortfolio(portfolio);
+        render();
+      } finally {
+        manualRefreshBtn.disabled = false;
+        manualRefreshBtn.textContent = "手动刷新美股行情";
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      render();
+    });
+  </script>
+</body>
+</html>
