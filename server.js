@@ -1,4 +1,4 @@
-// server.js
+// server.js - 使用 Alpha Vantage 抓取美股行情，意大利股票手动价格，不含 AI 解析
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
@@ -8,29 +8,36 @@ const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ========== Alpha Vantage（只给美股用） ==========
-// !!! 这里一定要换成你自己的 Alpha Vantage API Key !!!
-// 登录 https://www.alphavantage.co 复制你的 KEY，粘贴到下面这行引号里：
-const ALPHA_VANTAGE_API_KEY = "ZG4H6IIL92LJBUFX";
-// ================================================
+// ===== Alpha Vantage 配置（只用于美股） =====
+// 去 https://www.alphavantage.co 注册一个免费 KEY，填到这里
+const ALPHA_VANTAGE_API_KEY =
+  process.env.ALPHA_VANTAGE_API_KEY || "ZG4H6IIL92LJBUFX";
 
-if (!ALPHA_VANTAGE_API_KEY || ALPHA_VANTAGE_API_KEY.includes("在这里")) {
+if (
+  !ALPHA_VANTAGE_API_KEY ||
+  ALPHA_VANTAGE_API_KEY === "YOUR_ALPHA_VANTAGE_KEY_HERE"
+) {
   console.warn(
-    "⚠ 警告：当前 ALPHA_VANTAGE_API_KEY 还没有配置，美股行情会返回错误。"
+    "⚠ 警告：还没有配置 ALPHA_VANTAGE_API_KEY，美股行情接口会报错，请在环境变量或 server.js 顶部填写你的 KEY。"
   );
 }
+// =======================================
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 /**
- * 美股行情（Alpha Vantage）
+ * 调用 Alpha Vantage 获取美股报价
+ * @param {string} symbol 例如 SYM / AAPL
  */
 async function fetchAlphaQuote_US(symbol) {
-  if (!ALPHA_VANTAGE_API_KEY || ALPHA_VANTAGE_API_KEY.includes("在这里")) {
+  if (
+    !ALPHA_VANTAGE_API_KEY ||
+    ALPHA_VANTAGE_API_KEY === "YOUR_ALPHA_VANTAGE_KEY_HERE"
+  ) {
     throw new Error(
-      "服务器未配置 Alpha Vantage API Key，请先在 server.js 顶部填写你的 API Key。"
+      "服务器未配置 Alpha Vantage API Key，请先在 server.js 顶部填写或在环境变量 ALPHA_VANTAGE_API_KEY 中设置。"
     );
   }
 
@@ -50,7 +57,7 @@ async function fetchAlphaQuote_US(symbol) {
 
   if (data.Note) {
     throw new Error(
-      "Alpha Vantage 提示调用太频繁（免费账户限制），请稍后再试。"
+      "Alpha Vantage 提示调用太频繁（免费账户有频率限制），请稍后再试。"
     );
   }
 
@@ -76,29 +83,30 @@ async function fetchAlphaQuote_US(symbol) {
 }
 
 /**
- * 综合行情接口：
- * 目前只有美股会调用，意大利部分已改为手动价格，不再请求外部接口。
- *   /api/quote?symbol=SYM&market=US
+ * 行情接口：
+ *   - 仅支持美股（market=US）
+ *   - 意大利股票使用手动价格，这里不处理
+ *
+ * GET /api/quote?symbol=SYM&market=US
  */
 app.get("/api/quote", async (req, res) => {
   const symbol = (req.query.symbol || "").trim();
-  const market = (req.query.market || "US").toUpperCase(); // 只支持 US
+  const market = (req.query.market || "US").toUpperCase();
 
   if (!symbol) {
     return res.status(400).json({
       error:
-        "symbol 参数必填，请填写股票代码（括号里的英文字母），例如美股 SYM / AAPL。"
+        "symbol 参数必填，请填写股票代码（括号里的英文字母），例如 SYM / AAPL。"
+    });
+  }
+
+  if (market !== "US") {
+    return res.status(400).json({
+      error: "当前行情接口仅支持美股；意大利股票请在前端录入或修改现价。"
     });
   }
 
   try {
-    if (market !== "US") {
-      // 前端现在不会传 IT 到这里，这里只是兜底
-      return res.status(400).json({
-        error: "当前接口仅支持美股行情；意大利股票价格已改为手动维护。"
-      });
-    }
-
     const quote = await fetchAlphaQuote_US(symbol);
     console.log("获取美股行情成功:", quote);
     res.json(quote);
@@ -112,7 +120,7 @@ app.get("/api/quote", async (req, res) => {
   }
 });
 
-// 静态页面兜底
+// ------- 静态页面兜底（Render 等环境也适用） -------
 app.get("*", (req, res) => {
   const htmlPath = path.join(__dirname, "public", "index.html");
   const htmPath = path.join(__dirname, "public", "index.htm");
@@ -130,6 +138,6 @@ app.get("*", (req, res) => {
 
 app.listen(PORT, () => {
   console.log(
-    `✅ Italy + US portfolio tracker (US=AlphaVantage, IT=手动价格) running at http://localhost:${PORT}`
+    `✅ Italy + US portfolio tracker (US=AlphaVantage, IT=手动价格, 无AI解析) running at http://localhost:${PORT}`
   );
 });

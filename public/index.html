@@ -168,16 +168,6 @@
       text-decoration: underline;
     }
 
-    .btn-outline {
-      background: #ffffff;
-      border-radius: 999px;
-      border: 1px solid #d0d4f0;
-      font-size: 11px;
-      padding: 4px 10px;
-      color: #4150b8;
-      cursor: pointer;
-    }
-
     .tag {
       display: inline-block;
       padding: 2px 7px;
@@ -343,12 +333,6 @@
       color: #d03131;
     }
 
-    .client-card-footer {
-      margin-top: 8px;
-      display: flex;
-      justify-content: flex-end;
-    }
-
     @media (max-width: 900px) {
       .layout {
         flex-direction: column;
@@ -379,8 +363,8 @@
       <div>
         <div class="page-title">意大利 & 美股 客户持股追踪</div>
         <div class="page-subtitle">
-          按客户记录持股；美股实时价来自 Alpha Vantage。意大利股票当前采用
-          <strong>手动价格</strong>（默认使用买入价，可在“现价”输入框中自行修改），数据仅保存在本机浏览器中。
+          按客户记录持仓，意大利股票用欧元，价格可手动录入修改；美股使用 Alpha Vantage
+          实时行情（美元）。
         </div>
       </div>
       <div class="page-tags">
@@ -439,13 +423,13 @@
               </div>
 
               <div>
-                <label>现价（仅意大利，可选）</label>
+                <label>现价（可选）</label>
                 <input
                   type="number"
                   id="currentPrice"
                   min="0"
                   step="0.01"
-                  placeholder="意大利：不填则默认=买入价；美股自动行情忽略此项"
+                  placeholder="意大利默认手动；美股留空则用 Alpha Vantage 抓取"
                 />
               </div>
 
@@ -521,16 +505,16 @@
           </table>
 
           <div class="text-muted" style="margin-top:8px;">
-            美股行情数据来自 Alpha Vantage，仅作参考，实际成交价格以券商系统为准。意大利股票采用手动价格，默认以买入价为现价，可通过“编辑”修改“现价”后重新保存。
+            美股行情来自 Alpha Vantage，意大利股票价格为手动录入，仅作参考，实际成交以券商系统为准。
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 前端脚本：意大利手动（可编辑现价），美股通过 /api/quote 自动抓取 -->
+  <!-- 前端脚本 -->
   <script>
-    const STORAGE_KEY = "italy_us_portfolio_manual_IT";
+    const STORAGE_KEY = "italy_us_portfolio_alpha_vantage";
 
     function formatMoney(num, currency) {
       if (!isFinite(num)) {
@@ -572,16 +556,16 @@
       return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
     }
 
-    // 只给美股用的行情接口；意大利不调用
-    async function fetchQuoteUS(symbol) {
+    async function fetchQuote(symbol, market) {
       const resp = await fetch(
         "/api/quote?symbol=" +
           encodeURIComponent(symbol) +
-          "&market=US"
+          "&market=" +
+          encodeURIComponent(market || "US")
       );
       const data = await resp.json();
       if (!resp.ok) {
-        throw new Error(data.error || "美股行情接口错误");
+        throw new Error(data.error || "行情接口错误");
       }
       return data;
     }
@@ -616,8 +600,11 @@
     const clientSummaryCards = document.getElementById("clientSummaryCards");
 
     let editingId = null;
+    let cachedPortfolio = [];
+    let cachedClientStats = {};
 
     function renderClientSummaryCards(stats) {
+      cachedClientStats = stats;
       clientSummaryCards.innerHTML = "";
       const keys = Object.keys(stats);
       if (!keys.length) {
@@ -661,9 +648,6 @@
               profit >= 0 ? "positive-text" : "negative-text"
             }">${formatMoney(profit, currency)}</span>
           </div>
-          <div class="client-card-footer">
-            <button type="button" class="btn-outline">AI解析建议</button>
-          </div>
         `;
         clientSummaryCards.appendChild(card);
       });
@@ -671,14 +655,16 @@
 
     function render() {
       const portfolio = loadPortfolio();
+      cachedPortfolio = portfolio;
       positionsTbody.innerHTML = "";
 
       const clientStats = {};
 
       portfolio.forEach((pos) => {
         const currency = pos.currency || (pos.market === "US" ? "USD" : "EUR");
+        const price = pos.lastPrice || pos.costPrice;
         const invested = pos.shares * pos.costPrice;
-        const marketValue = pos.shares * (pos.lastPrice || pos.costPrice);
+        const marketValue = pos.shares * price;
         const profit = marketValue - invested;
         const rate = invested > 0 ? (profit / invested) * 100 : 0;
 
@@ -717,11 +703,8 @@
         tr.appendChild(costTd);
 
         const priceTd = document.createElement("td");
-        const priceLabel = pos.lastPrice
-          ? formatMoney(pos.lastPrice, currency)
-          : "—";
         priceTd.innerHTML =
-          priceLabel + ` <span class="tag">${currency}</span>`;
+          formatMoney(price, currency) + ` <span class="tag">${currency}</span>`;
         tr.appendChild(priceTd);
 
         const investedTd = document.createElement("td");
@@ -795,13 +778,8 @@
       stopLossInput.value = pos.stopLoss ?? "";
       takeProfitInput.value = pos.takeProfit ?? "";
       noteInput.value = pos.note || "";
-
-      // 只有意大利才给现价输入框赋值
-      if ((pos.market || "IT") === "IT" && pos.lastPrice) {
-        currentPriceInput.value = pos.lastPrice;
-      } else {
-        currentPriceInput.value = "";
-      }
+      currentPriceInput.value =
+        pos.manualPrice != null ? pos.manualPrice : "";
 
       saveBtn.textContent = "保存修改";
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -815,7 +793,7 @@
       render();
     }
 
-    // 提交表单：US 自动抓行情，IT 用手动价格（lastPrice 可编辑）
+    // 表单提交：意股默认用手动或成本价，美股留空时调用 Alpha Vantage
     positionForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
@@ -825,7 +803,7 @@
       const symbol = symbolInput.value.trim();
       const shares = parseFloat(sharesInput.value);
       const costPrice = parseFloat(costPriceInput.value);
-      const currentPriceManual = currentPriceInput.value
+      const manualPrice = currentPriceInput.value
         ? parseFloat(currentPriceInput.value)
         : null;
       const stopLoss = stopLossInput.value ? parseFloat(stopLossInput.value) : null;
@@ -845,13 +823,18 @@
         let lastPrice;
         let currency;
 
-        if (market === "US") {
-          const quote = await fetchQuoteUS(symbol);
+        if (manualPrice != null) {
+          // 不论意股还是美股，只要填了现价就以手动为准
+          lastPrice = manualPrice;
+          currency = market === "US" ? "USD" : "EUR";
+        } else if (market === "US") {
+          // 美股、没填现价：调用 Alpha Vantage
+          const quote = await fetchQuote(symbol, market);
           lastPrice = quote.price;
           currency = quote.currency || "USD";
         } else {
-          // 意大利：现价优先用手动输入，否则默认等于成本价
-          lastPrice = currentPriceManual != null ? currentPriceManual : costPrice;
+          // 意股、没填现价：默认用成本价作为当前价
+          lastPrice = costPrice;
           currency = "EUR";
         }
 
@@ -867,6 +850,7 @@
                   symbol,
                   shares,
                   costPrice,
+                  manualPrice,
                   stopLoss,
                   takeProfit,
                   note,
@@ -885,6 +869,7 @@
             symbol,
             shares,
             costPrice,
+            manualPrice,
             stopLoss,
             takeProfit,
             note,
@@ -916,7 +901,7 @@
       render();
     });
 
-    // 手动刷新：只刷新美股行情，意大利跳过
+    // 手动刷新：只刷新「美股且没有手动价格」的持仓
     manualRefreshBtn.addEventListener("click", async () => {
       let portfolio = loadPortfolio();
       if (!portfolio.length) {
@@ -930,12 +915,11 @@
       try {
         for (let i = 0; i < portfolio.length; i++) {
           const pos = portfolio[i];
-          if ((pos.market || "IT") !== "US") {
-            continue; // 意大利不用刷新
-          }
+          if (pos.market !== "US") continue;
+          if (pos.manualPrice != null) continue; // 手动价格就不刷新
 
           try {
-            const quote = await fetchQuoteUS(pos.symbol);
+            const quote = await fetchQuote(pos.symbol, pos.market);
             const currency = quote.currency || "USD";
             portfolio[i] = {
               ...pos,
@@ -944,7 +928,7 @@
               updatedAt: Date.now()
             };
           } catch (err) {
-            console.warn("刷新美股失败：", pos.symbol, err.message);
+            console.warn("刷新美股行情失败：", pos.symbol, err.message);
           }
         }
         savePortfolio(portfolio);
